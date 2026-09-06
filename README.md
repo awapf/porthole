@@ -219,7 +219,7 @@ CMAC/CTR layer. `RFBClient.authenticate()` is where it would slot in.
 swift run porthole-selftest
 ```
 
-38 checks with no external dependencies, covering:
+55 checks with no external dependencies, covering:
 
 - DES against the FIPS-46 known-answer vector, and the bit-reversed VNC key
   mangling.
@@ -235,6 +235,14 @@ swift run porthole-selftest
 - **Offscreen Metal renders** read back pixel by pixel, checking orientation,
   forced-opaque alpha, letterboxing, and that dirty rects upload only what they
   claim.
+- The **extended clipboard** round-tripped through notify/request/provide, with
+  the payload decoded independently of the encoder so the test is not merely
+  checking the code against itself.
+- **Key latching**, which is the failure that made the client unusable in
+  practice: macOS withholds `keyUp:` while Command is held, so a chord left the
+  letter pressed and the remote's auto-repeat flooded the screen.
+- Regression tests for both wayvnc interoperability bugs below, since neither
+  is discoverable from the RFB specification.
 
 There is also a demo server, so the window and input can be exercised with no VM:
 
@@ -263,6 +271,24 @@ Sources/porthole/             AppKit shell
 Sources/porthole-selftest/    suite + loopback and demo servers
 ```
 
+## Interoperability notes
+
+Two wayvnc/neatvnc behaviours cost real time to find and are not visible in the
+RFB specification. Both are worked around, and both have regression tests.
+
+**An incremental update request while continuous updates are enabled wedges the
+server.** `on_client_fb_update_request` returns 0 — its "message incomplete,
+retry later" signal — for that combination, and its client-message parser then
+stalls permanently. The screen keeps updating, because that direction is
+server-driven, so it presents as the keyboard and mouse dying silently while
+video continues. Continuous updates are off by default here, and the client
+cannot produce the combination.
+
+**ExtendedDesktopSize status 4 is an acceptance, not a refusal.** It means
+`REQUEST_FORWARDED`: the resize was handed to the compositor, and the rectangle
+still carries the *old* dimensions. Reading it as a failure leaves the client
+stuck at the original resolution.
+
 ## Known gaps
 
 - **RSA-AES auth** is not implemented (see Security above).
@@ -273,9 +299,14 @@ Sources/porthole-selftest/    suite + loopback and demo servers
 - **open-h264** (encoding 50) is not implemented. wayvnc only offers it with
   VAAPI on the server, which a Proxmox VM without GPU passthrough will not have.
 - **Multi-monitor** is single-screen only; `SetDesktopSize` sends one screen.
-- **⌘Tab and ⌘Space** are intercepted by macOS before the app sees them.
-  Capturing them needs a `CGEventTap` and an Accessibility permission prompt.
-- **Audio** is out of scope; use PipeWire over the SSH connection if you need it.
+- **⌘C is not translated.** Command maps to Super, so ⌘C reaches the remote as
+  Super+C and the bare letter falls through to the focused app. Linux has two
+  different copy chords — Ctrl+Shift+C in terminals, Ctrl+C everywhere else —
+  and picking one without knowing the focused app is wrong half the time. Use
+  the remote's own shortcuts, or the keyboard grab.
+- **Ad-hoc code signing** means a rebuild can invalidate the Accessibility
+  grant. `make install` signs with a stable identifier, which should prevent
+  it; a Developer ID certificate would remove the caveat entirely.
 
 ## License
 
