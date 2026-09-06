@@ -42,7 +42,9 @@ if let path = options.dumpFrame {
     FrameDumper(path: path, verbose: options.verbose).run(options: options)
 }
 
-let application = NSApplication.shared
+// Our subclass, so it becomes NSApp — this is what rescues key-up events
+// swallowed while Command is held.
+let application = PortholeApplication.shared
 let delegate = AppDelegate(options: options)
 application.delegate = delegate
 

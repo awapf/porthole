@@ -109,6 +109,7 @@ h.test("reset lets a fresh stream decode correctly") {
     try h.expectEqual(try inflater.inflateAll(Deflater().compress(payload), hint: 64), payload)
 }
 
+runKeyboardTests(h)
 runDecoderTests(h)
 runSessionTests(h)
 runRenderTests(h)

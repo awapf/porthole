@@ -30,7 +30,7 @@ final class VNCView: NSView {
 
     private var buttonMask: PointerButtons = []
     private var lastModifiers: NSEvent.ModifierFlags = []
-    private var pressedKeysyms: [UInt16: UInt32] = [:]
+    private var keyboard = KeyboardTracker()
     private var remoteCursor: NSCursor?
     /// Kept so the cursor can be rebuilt when the geometry changes.
     private var lastCursorImage: CursorImage?
@@ -292,17 +292,15 @@ final class VNCView: NSView {
 
     override func keyDown(with event: NSEvent) {
         if hotkeyHandler?(event) == true { return }
+        // The remote does its own auto-repeat from the held key. Forwarding
+        // macOS's repeats as well would double every held keystroke.
+        if event.isARepeat { return }
         guard let keysym = keysym(for: event) else { return }
-        pressedKeysyms[event.keyCode] = keysym
-        client?.sendKey(keysym: keysym, down: true)
+        apply(keyboard.press(keyCode: event.keyCode, keysym: keysym))
     }
 
     override func keyUp(with event: NSEvent) {
-        // Release the keysym we pressed, not the one the current modifier state
-        // implies — otherwise releasing Shift before a letter strands it down.
-        let keysym = pressedKeysyms.removeValue(forKey: event.keyCode) ?? keysym(for: event)
-        guard let keysym else { return }
-        client?.sendKey(keysym: keysym, down: false)
+        apply(keyboard.release(keyCode: event.keyCode, fallbackKeysym: keysym(for: event)))
     }
 
     private func keysym(for event: NSEvent) -> UInt32? {
@@ -333,15 +331,29 @@ final class VNCView: NSView {
         let isDown = event.modifierFlags.contains(flag) && !lastModifiers.contains(flag)
         let isUp = !event.modifierFlags.contains(flag) && lastModifiers.contains(flag)
         if isDown { client?.sendKey(keysym: keysym, down: true) }
-        if isUp { client?.sendKey(keysym: keysym, down: false) }
+        if isUp {
+            client?.sendKey(keysym: keysym, down: false)
+            // Belt and braces for the key-up macOS may still have swallowed:
+            // once Command is released, nothing should remain held.
+            if flag == .command { releaseHeldKeys() }
+        }
         lastModifiers = event.modifierFlags
+    }
+
+    /// Releases non-modifier keys we believe are down, leaving modifier state
+    /// alone so a chord in progress is not broken.
+    private func releaseHeldKeys() {
+        apply(keyboard.releaseAll())
+    }
+
+    private func apply(_ actions: [KeyAction]) {
+        for action in actions { client?.sendKey(keysym: action.keysym, down: action.down) }
     }
 
     /// Releases every key we believe is held. Called when focus leaves, so a
     /// modifier held during a window switch does not stick on the remote.
     func releaseAllKeys() {
-        for (_, keysym) in pressedKeysyms { client?.sendKey(keysym: keysym, down: false) }
-        pressedKeysyms.removeAll()
+        apply(keyboard.releaseAll())
         for keysym in [Keysym.shiftL, Keysym.shiftR, Keysym.controlL, Keysym.controlR,
                        Keysym.altL, Keysym.altR, Keysym.superL, Keysym.superR] {
             client?.sendKey(keysym: keysym, down: false)
