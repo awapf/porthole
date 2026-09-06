@@ -135,6 +135,7 @@ struct Options {
     OTHER
       --init-config         Write a starter ~/.config/porthole/config.json.
       -v, --verbose         Log the handshake and remote commands.
+      -V, --version         Print the version and exit.
       -h, --help            This text.
 
     IN-SESSION KEYS
@@ -170,6 +171,7 @@ struct Options {
             explicitFlags.insert(argument)
             switch argument {
             case "-h", "--help": throw CLIError.showUsage
+            case "-V", "--version": throw CLIError.showVersion
             case "--init-config": throw CLIError.initConfig
             case "-v", "--verbose": options.verbose = true
             case "--direct": options.direct = true
@@ -268,6 +270,7 @@ struct Options {
 
 enum CLIError: Error {
     case showUsage
+    case showVersion
     case initConfig
     case missingValue(String)
     case unknownFlag(String)

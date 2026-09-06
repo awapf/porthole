@@ -43,19 +43,43 @@ against TigerVNC and x11vnc unchanged.
 
 ## Install
 
+### Homebrew
+
+```bash
+brew tap awapf/porthole https://github.com/awapf/porthole
+brew install awapf/porthole/porthole
+```
+
+The formula lives in this repo under `HomebrewFormula/`, so no separate tap
+repository is needed. It builds from source, runs the test suite as its install
+check, and signs the binary with a stable identifier so the Accessibility grant
+for the keyboard grab survives upgrades.
+
+### From source
+
 Requires macOS 14+ and the Swift toolchain that ships with Command Line Tools
 (`xcode-select --install`). Full Xcode is **not** needed.
 
 ```bash
-git clone <this repo> porthole && cd porthole
+git clone https://github.com/awapf/porthole && cd porthole
 make install          # builds release, installs to ~/.local/bin
 ```
 
-Or by hand:
+`~/.local/bin` must be on your `PATH`. Check the version with:
 
 ```bash
-swift build -c release
-cp .build/release/porthole /usr/local/bin/
+porthole --version
+```
+
+## Releasing
+
+The version is checked into `Sources/PortholeCore/Version.swift` rather than
+derived from git, because Homebrew builds from a release tarball that carries no
+git metadata. `make tag` keeps the constant and the tag in step:
+
+```bash
+make tag VERSION=0.2.0      # bump, commit, tag, push both
+make formula VERSION=0.2.0  # fetch the tarball, update url + sha256
 ```
 
 ## Remote setup

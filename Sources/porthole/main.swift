@@ -16,6 +16,9 @@ do {
 } catch CLIError.showUsage {
     print(Options.usage)
     exit(arguments.isEmpty ? 1 : 0)
+} catch CLIError.showVersion {
+    print(Porthole.versionString)
+    exit(0)
 } catch CLIError.initConfig {
     do {
         let path = try PortholeConfig.writeTemplate()
