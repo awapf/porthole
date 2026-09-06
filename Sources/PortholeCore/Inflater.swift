@@ -44,10 +44,12 @@ public final class Inflater {
     }
 
     /// Inflates all of `input`, growing the output as needed. Used by ZRLE,
-    /// whose uncompressed tile stream has no length prefix.
-    public func inflateAll(_ input: [UInt8], hint: Int) throws -> [UInt8] {
+    /// whose uncompressed tile stream has no length prefix. `limit` caps the
+    /// output so a decompression bomb — a tiny payload that inflates to
+    /// gigabytes — is rejected rather than exhausting memory.
+    public func inflateAll(_ input: [UInt8], hint: Int, limit: Int = .max) throws -> [UInt8] {
         guard initialised else { throw RFBError.decode("inflater not initialised") }
-        var out = [UInt8](repeating: 0, count: max(hint, 1024))
+        var out = [UInt8](repeating: 0, count: min(max(hint, 1024), max(limit, 1)))
         var produced = 0
         var finished = false
 
@@ -57,7 +59,12 @@ public final class Inflater {
             defer { stream.next_in = nil; stream.next_out = nil }
 
             while !finished {
-                if produced == out.count { out.append(contentsOf: [UInt8](repeating: 0, count: out.count)) }
+                if produced == out.count {
+                    guard out.count < limit else {
+                        throw RFBError.decode("inflate output exceeded the \(limit)-byte limit")
+                    }
+                    out.append(contentsOf: [UInt8](repeating: 0, count: min(out.count, limit - out.count)))
+                }
                 var rc: Int32 = Z_OK
                 out.withUnsafeMutableBufferPointer { outBuf in
                     stream.next_out = outBuf.baseAddress!.advanced(by: produced)

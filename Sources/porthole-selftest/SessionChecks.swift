@@ -539,4 +539,70 @@ func runSessionTests(_ h: Harness) {
         client.framebuffer.lock.unlock()
         try h.expectEqual(pixel, rgb(4, 5, 6))
     }
+
+    h.test("a ServerCutText length of 0x80000000 does not crash the client") {
+        // Regression: the extended-clipboard branch negated the Int32 length,
+        // and -Int32.min traps. A single hostile message would abort the
+        // process. It must now be handled as ordinary bad input instead — if
+        // the trap returns, this whole test binary dies.
+        let server = try LoopbackServer(width: 16, height: 16)
+        defer { server.close() }
+        server.start {}
+        let socket = try Socket(host: "127.0.0.1", port: server.port)
+        let client = RFBClient(transport: socket, options: RFBOptions())
+        let recorder = Recorder()
+        client.delegate = recorder
+        try client.connect()
+        defer { client.stop() }
+        try h.expect(wait(recorder.connected, seconds: 3), "no connect callback")
+        client.start()
+
+        try server.sendServerCutTextRawLength(0x8000_0000)
+        server.close()   // no payload follows; let the client reach a clean EOF
+        try h.expect(wait(recorder.disconnected, seconds: 3),
+                     "client neither survived nor reported the hostile length")
+    }
+
+    h.test("an implausibly large ServerCutText length is rejected, not allocated") {
+        // ~1 GB of declared clipboard must not become a 1 GB allocation; the
+        // client should drop the session with a protocol error instead.
+        let server = try LoopbackServer(width: 16, height: 16)
+        defer { server.close() }
+        server.start {}
+        let socket = try Socket(host: "127.0.0.1", port: server.port)
+        let client = RFBClient(transport: socket, options: RFBOptions())
+        let recorder = Recorder()
+        client.delegate = recorder
+        try client.connect()
+        defer { client.stop() }
+        try h.expect(wait(recorder.connected, seconds: 3), "no connect callback")
+        client.start()
+
+        try server.sendServerCutTextRawLength(0x4000_0000)   // ~1 GiB, positive
+        try h.expect(wait(recorder.disconnected, seconds: 3), "no disconnect")
+        try h.expect(recorder.error != nil, "oversized length was not treated as an error")
+    }
+
+    h.test("an out-of-range DesktopSize is rejected before it is allocated") {
+        // A 65535x65535 resize would name a ~17 GB framebuffer. It must be
+        // refused rather than handed to Framebuffer.resize.
+        let server = try LoopbackServer(width: 32, height: 32)
+        defer { server.close() }
+        server.start {}
+        let socket = try Socket(host: "127.0.0.1", port: server.port)
+        let client = RFBClient(transport: socket, options: RFBOptions())
+        let recorder = Recorder()
+        client.delegate = recorder
+        try client.connect()
+        defer { client.stop() }
+        try h.expect(wait(recorder.connected, seconds: 3), "no connect callback")
+        client.start()
+
+        try server.sendDesktopSizePseudoRect(width: 65535, height: 65535)
+        try h.expect(wait(recorder.disconnected, seconds: 3), "no disconnect")
+        try h.expect(recorder.error != nil, "oversized resize was not treated as an error")
+        // The framebuffer must still be the size the handshake established.
+        try h.expectEqual(client.framebuffer.width, 32, "framebuffer width unchanged")
+        try h.expectEqual(client.framebuffer.height, 32, "framebuffer height unchanged")
+    }
 }

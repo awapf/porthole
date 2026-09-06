@@ -13,10 +13,20 @@ public final class ZRLEDecoder {
 
     public func decode(reader: BufferedReader, rect: RFBRect, into fb: Framebuffer,
                        pixelFormat pf: PixelFormat, compressed: Bool) throws {
+        // The tile stream cannot exceed the rect's pixels plus per-tile
+        // overhead, so bound both the compressed length we will read and the
+        // inflated size we will produce. The rect is already clamped to the
+        // framebuffer, so this scales with a legitimate frame and rejects a
+        // tiny message that claims gigabytes (or a decompression bomb).
+        let uncompressedBound = rect.width * rect.height * 4 + (1 << 16)
         let length = Int(try reader.readU32())
+        guard length >= 0, length <= uncompressedBound else {
+            throw RFBError.decode("ZRLE payload length \(length) is out of range")
+        }
         let payload = try reader.readBytes(length)
         let tiles = compressed
-            ? try inflater.inflateAll(payload, hint: rect.width * rect.height * 4)
+            ? try inflater.inflateAll(payload, hint: rect.width * rect.height * 4,
+                                      limit: uncompressedBound)
             : payload
         var cursor = ByteCursor(tiles)
         try decodeTiles(&cursor, rect: rect, into: fb, pixelFormat: pf)

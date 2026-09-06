@@ -76,9 +76,14 @@ public enum ExtClipboard {
     }
 
     /// Extracts the text from a provide payload (everything after the flags).
+    /// Ceiling on the inflated clipboard text, so a compressed payload within
+    /// `maxPayload` cannot inflate to gigabytes. Generous for real clipboards.
+    public static let maxInflatedText = 16 << 20
+
     public static func textFromProvide(_ zlibData: [UInt8]) throws -> String? {
         let inflater = Inflater()
-        let raw = try inflater.inflateAll(zlibData, hint: max(zlibData.count * 4, 1024))
+        let raw = try inflater.inflateAll(zlibData, hint: max(zlibData.count * 4, 1024),
+                                          limit: maxInflatedText)
         guard raw.count >= 4 else {
             throw RFBError.decode("clipboard payload is \(raw.count) bytes, need at least 4")
         }

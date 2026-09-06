@@ -109,6 +109,24 @@ h.test("reset lets a fresh stream decode correctly") {
     try h.expectEqual(try inflater.inflateAll(Deflater().compress(payload), hint: 64), payload)
 }
 
+h.test("inflateAll refuses a decompression bomb past its limit") {
+    // A megabyte of zeros compresses tiny but would inflate far past a small
+    // cap — the limit must stop it instead of growing the buffer unbounded.
+    let bomb = [UInt8](repeating: 0, count: 1 << 20)
+    let compressed = Deflater().compress(bomb)
+    try h.expect(compressed.count < 4096, "the bomb should compress small")
+    var threw = false
+    do {
+        _ = try Inflater().inflateAll(compressed, hint: 1024, limit: 64 << 10)
+    } catch {
+        threw = true
+    }
+    try h.expect(threw, "inflateAll ignored its output limit")
+    // Under the limit, the same data still decodes.
+    let ok = try Inflater().inflateAll(compressed, hint: 1024, limit: 1 << 21)
+    try h.expectEqual(ok.count, bomb.count, "legitimate inflate within the limit failed")
+}
+
 runKeyboardTests(h)
 runDecoderTests(h)
 runSessionTests(h)
