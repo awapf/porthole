@@ -1,5 +1,5 @@
 import AppKit
-import MyTightCore
+import PortholeCore
 
 /// Borderless windows refuse key status unless we insist.
 final class SessionWindow: NSWindow {
@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
             styleMask: isFullscreen ? [.borderless] : [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false)
-        window.title = "mytight — \(options.destination)"
+        window.title = "porthole — \(options.destination)"
         window.backgroundColor = .black
         // Without this the tracking area never yields mouseMoved, so the
         // remote pointer only moves when a button is held.
@@ -212,7 +212,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
         isLive = true
         reconnectAttempt = 0
         overlay.hide()
-        window.title = "mytight — \(desktopName)"
+        window.title = "porthole — \(desktopName)"
         vncView.framebufferDidResize()
         applyResolution()
         startPasteboardWatch()
@@ -425,7 +425,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
 
     private func log(_ message: String) {
         guard options.verbose else { return }
-        FileHandle.standardError.write(Data("mytight: \(message)\n".utf8))
+        FileHandle.standardError.write(Data("porthole: \(message)\n".utf8))
     }
 
     private func fail(_ error: Error) {
@@ -434,7 +434,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
             let text = describe(error)
             self.isLive = false
             self.overlay.showError(text)
-            FileHandle.standardError.write(Data("mytight: \(text)\n".utf8))
+            FileHandle.standardError.write(Data("porthole: \(text)\n".utf8))
         }
     }
 

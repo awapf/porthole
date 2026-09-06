@@ -207,7 +207,7 @@ public final class RFBClient {
     public func start() {
         running = true
         let thread = Thread { [weak self] in self?.runLoop() }
-        thread.name = "mytight.rfb"
+        thread.name = "porthole.rfb"
         thread.stackSize = 1 << 20
         self.thread = thread
         thread.start()

@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
-import MyTightCore
+import PortholeCore
 
 /// `--dump-frame PATH`: connect, wait for the framebuffer to settle, write it
 /// to a PNG and exit. No window, no Metal — so it isolates "what did the server
@@ -66,7 +66,7 @@ final class FrameDumper: RFBClientDelegate {
             ssh?.disconnect()
             exit(0)
         } catch {
-            FileHandle.standardError.write(Data("mytight: \(describe(error))\n".utf8))
+            FileHandle.standardError.write(Data("porthole: \(describe(error))\n".utf8))
             ssh?.disconnect()
             exit(1)
         }
@@ -133,7 +133,7 @@ final class FrameDumper: RFBClientDelegate {
             ssh?.disconnect()
             exit(0)
         } catch {
-            FileHandle.standardError.write(Data("mytight: \(describe(error))\n".utf8))
+            FileHandle.standardError.write(Data("porthole: \(describe(error))\n".utf8))
             ssh?.disconnect()
             exit(1)
         }

@@ -1,5 +1,5 @@
 import AppKit
-import MyTightCore
+import PortholeCore
 
 enum Resolution {
     /// The Mac's backing-store pixels — a 1:1 map with no resampling.
@@ -74,13 +74,13 @@ struct Options {
     var testKey = "3"
 
     static let usage = """
-    mytight — a native macOS VNC client for wayvnc/sway over SSH or NetBird
+    porthole — a native macOS VNC client for wayvnc/sway over SSH or NetBird
 
     USAGE
-      mytight <user@host | saved-name> [options]
-      mytight --direct <host[:port]> [options]
+      porthole <user@host | saved-name> [options]
+      porthole --direct <host[:port]> [options]
 
-    By default mytight opens one multiplexed SSH connection, starts wayvnc on the
+    By default porthole opens one multiplexed SSH connection, starts wayvnc on the
     far end (bringing up a headless sway first if nothing is running), forwards the
     port to loopback, and opens a full-screen native window sized to this display.
 
@@ -91,7 +91,7 @@ struct Options {
                             WireGuard/NetBird mesh, where the link is already
                             encrypted and the extra hop only costs latency.
       --port N              Remote VNC port (default 5900).
-      --password P          VNC password. Also read from $MYTIGHT_PASSWORD.
+      --password P          VNC password. Also read from $PORTHOLE_PASSWORD.
       --ssh-opt ARG         Extra argument passed to ssh. Repeatable.
       --no-reuse            Always start a fresh wayvnc, never adopt a running one.
 
@@ -129,7 +129,7 @@ struct Options {
                             from "what we drew" when a session looks blank.
 
     OTHER
-      --init-config         Write a starter ~/.config/mytight/config.json.
+      --init-config         Write a starter ~/.config/porthole/config.json.
       -v, --verbose         Log the handshake and remote commands.
       -h, --help            This text.
 
@@ -201,13 +201,13 @@ struct Options {
         guard let target = positional.first else { throw CLIError.showUsage }
 
         // A bare name that is not user@host or host:port may name a saved host.
-        let config = MyTightConfig.load()
+        let config = PortholeConfig.load()
         let saved = config.host(named: target)
         options.apply(config.defaults, explicit: explicitFlags)
         options.apply(saved, explicit: explicitFlags)
         options.destination = saved?.destination ?? target
 
-        if options.password == nil, let environment = ProcessInfo.processInfo.environment["MYTIGHT_PASSWORD"] {
+        if options.password == nil, let environment = ProcessInfo.processInfo.environment["PORTHOLE_PASSWORD"] {
             options.password = environment
         }
         if options.lossless { options.quality = nil }

@@ -1,5 +1,5 @@
 import AppKit
-import MyTightCore
+import PortholeCore
 
 /// Full-bleed status card shown while the session is being brought up, and
 /// again if it fails. Keeping it inside the window means the user sees progress

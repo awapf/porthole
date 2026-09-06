@@ -1,6 +1,6 @@
 import Foundation
 import Metal
-import MyTightCore
+import PortholeCore
 
 /// Renders offscreen and reads the pixels back, so the shader, the vertical
 /// flip and the letterbox arithmetic are checked without a display or a screen

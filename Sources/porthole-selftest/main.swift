@@ -1,5 +1,5 @@
 import Foundation
-import MyTightCore
+import PortholeCore
 
 // `--serve [port]` runs a local RFB server instead of the test suite, so the
 // window, input and resize paths can be checked without a VM.

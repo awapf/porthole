@@ -21,7 +21,7 @@ public struct HostConfig: Codable {
     public init() {}
 }
 
-public struct MyTightConfig: Codable {
+public struct PortholeConfig: Codable {
     public var defaults: HostConfig?
     public var hosts: [String: HostConfig]?
 
@@ -29,18 +29,18 @@ public struct MyTightConfig: Codable {
 
     public static var path: URL {
         let base = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/mytight", isDirectory: true)
+            .appendingPathComponent(".config/porthole", isDirectory: true)
         return base.appendingPathComponent("config.json")
     }
 
-    public static func load() -> MyTightConfig {
-        guard let data = try? Data(contentsOf: path) else { return MyTightConfig() }
+    public static func load() -> PortholeConfig {
+        guard let data = try? Data(contentsOf: path) else { return PortholeConfig() }
         do {
-            return try JSONDecoder().decode(MyTightConfig.self, from: data)
+            return try JSONDecoder().decode(PortholeConfig.self, from: data)
         } catch {
             FileHandle.standardError.write(
-                Data("mytight: ignoring malformed \(path.path): \(error)\n".utf8))
-            return MyTightConfig()
+                Data("porthole: ignoring malformed \(path.path): \(error)\n".utf8))
+            return PortholeConfig()
         }
     }
 
@@ -51,7 +51,7 @@ public struct MyTightConfig: Codable {
     public static func writeTemplate() throws -> URL {
         try FileManager.default.createDirectory(at: path.deletingLastPathComponent(),
                                                 withIntermediateDirectories: true)
-        var config = MyTightConfig()
+        var config = PortholeConfig()
         var example = HostConfig()
         example.destination = "you@10.10.0.5"
         example.resolution = "auto"

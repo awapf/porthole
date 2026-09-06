@@ -1,7 +1,7 @@
 import AppKit
 import Metal
 import QuartzCore
-import MyTightCore
+import PortholeCore
 
 /// Renders the remote framebuffer with Metal and forwards input.
 ///
@@ -32,6 +32,8 @@ final class VNCView: NSView {
     private var lastModifiers: NSEvent.ModifierFlags = []
     private var pressedKeysyms: [UInt16: UInt32] = [:]
     private var remoteCursor: NSCursor?
+    /// Kept so the cursor can be rebuilt when the geometry changes.
+    private var lastCursorImage: CursorImage?
     private var cursorHidden = false
     private var lastPointer: (x: Int, y: Int, mask: UInt8)?
     private var scrollAccumulatorY: CGFloat = 0
@@ -95,6 +97,7 @@ final class VNCView: NSView {
     }
 
     private func updateDrawableSize() {
+        defer { rebuildCursor() }
         let scale = window?.backingScaleFactor ?? 2
         metalLayer.contentsScale = scale
         metalLayer.drawableSize = CGSize(width: bounds.width * scale, height: bounds.height * scale)
@@ -128,7 +131,9 @@ final class VNCView: NSView {
         renderer.upload(from: client.framebuffer, rects: pendingRects)
         pendingRects.removeAll(keepingCapacity: true)
         if let texture = renderer.texture {
+            let changed = remoteSize?.width != texture.width || remoteSize?.height != texture.height
             remoteSize = (texture.width, texture.height)
+            if changed { rebuildCursor() }
         }
     }
 
@@ -157,10 +162,30 @@ final class VNCView: NSView {
     // MARK: - Cursor
 
     func applyRemoteCursor(_ cursor: CursorImage?) {
-        guard let cursor, cursor.width > 0, cursor.height > 0 else {
+        lastCursorImage = cursor
+        rebuildCursor()
+    }
+
+    /// Builds the local cursor from the last image the server sent.
+    ///
+    /// The image is in remote framebuffer pixels, and a compositor running at
+    /// `scale 2` draws a 24pt pointer as 48 pixels. `NSImage` sizes are in
+    /// points, so using the pixel count directly renders it at double size on
+    /// a Retina display. Scale by the same factor that maps remote pixels onto
+    /// view points.
+    private func rebuildCursor() {
+        guard let cursor = lastCursorImage, cursor.width > 0, cursor.height > 0 else {
             remoteCursor = nil
             window?.invalidateCursorRects(for: self)
             return
+        }
+        let content = contentRect
+        var pointsPerRemotePixel: CGFloat = 1
+        if let remoteSize, remoteSize.width > 0, content.width > 0 {
+            pointsPerRemotePixel = content.width / CGFloat(remoteSize.width)
+        } else {
+            // Before the first frame, fall back to the display scale.
+            pointsPerRemotePixel = 1 / (window?.backingScaleFactor ?? 2)
         }
         var pixels = cursor.pixels
         let bitmapInfo = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue
@@ -170,10 +195,12 @@ final class VNCView: NSView {
                       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: bitmapInfo)
         }), let image = context.makeImage() else { return }
 
-        let size = NSSize(width: cursor.width, height: cursor.height)
+        let size = NSSize(width: CGFloat(cursor.width) * pointsPerRemotePixel,
+                          height: CGFloat(cursor.height) * pointsPerRemotePixel)
         let nsImage = NSImage(cgImage: image, size: size)
         remoteCursor = NSCursor(image: nsImage,
-                                hotSpot: NSPoint(x: cursor.hotX, y: cursor.hotY))
+                                hotSpot: NSPoint(x: CGFloat(cursor.hotX) * pointsPerRemotePixel,
+                                                 y: CGFloat(cursor.hotY) * pointsPerRemotePixel))
         window?.invalidateCursorRects(for: self)
     }
 

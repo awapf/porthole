@@ -1,5 +1,5 @@
 import Foundation
-import MyTightCore
+import PortholeCore
 
 /// Collects delegate callbacks so the test can wait on specific milestones.
 private final class Recorder: RFBClientDelegate {

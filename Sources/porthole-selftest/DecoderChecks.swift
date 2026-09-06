@@ -2,7 +2,7 @@ import Foundation
 import ImageIO
 import CoreGraphics
 import UniformTypeIdentifiers
-import MyTightCore
+import PortholeCore
 
 private func decodeTight(_ bytes: [UInt8], rect: RFBRect, into fb: Framebuffer,
                          using decoder: TightDecoder) throws {

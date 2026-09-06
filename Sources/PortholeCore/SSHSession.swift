@@ -40,7 +40,7 @@ public final class SSHSession {
         self.destination = destination
         self.extraArguments = extraArguments
         let digest = abs(destination.hashValue)
-        self.controlPath = NSTemporaryDirectory() + "mytight-\(digest).sock"
+        self.controlPath = NSTemporaryDirectory() + "porthole-\(digest).sock"
     }
 
     private var baseArguments: [String] {

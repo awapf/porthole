@@ -1,12 +1,12 @@
 import AppKit
-import MyTightCore
+import PortholeCore
 
 setbuf(stdout, nil)
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 
 func die(_ message: String) -> Never {
-    FileHandle.standardError.write(Data("mytight: \(message)\n".utf8))
+    FileHandle.standardError.write(Data("porthole: \(message)\n".utf8))
     exit(2)
 }
 
@@ -18,7 +18,7 @@ do {
     exit(arguments.isEmpty ? 1 : 0)
 } catch CLIError.initConfig {
     do {
-        let path = try MyTightConfig.writeTemplate()
+        let path = try PortholeConfig.writeTemplate()
         print("wrote \(path.path)")
         exit(0)
     } catch {
@@ -27,7 +27,7 @@ do {
 } catch CLIError.missingValue(let flag) {
     die("\(flag) needs a value")
 } catch CLIError.unknownFlag(let flag) {
-    die("unknown option \(flag) — run `mytight --help`")
+    die("unknown option \(flag) — run `porthole --help`")
 } catch CLIError.badValue(let flag, let value) {
     die("\(value) is not valid for \(flag)")
 } catch {
@@ -51,7 +51,7 @@ let menu = NSMenu()
 let appMenuItem = NSMenuItem()
 menu.addItem(appMenuItem)
 let appMenu = NSMenu()
-appMenu.addItem(withTitle: "Quit mytight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+appMenu.addItem(withTitle: "Quit porthole", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 appMenuItem.submenu = appMenu
 application.mainMenu = menu
 

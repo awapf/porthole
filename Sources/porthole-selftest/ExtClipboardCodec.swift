@@ -1,5 +1,5 @@
 import Foundation
-import MyTightCore
+import PortholeCore
 
 /// Decodes a provide payload the way neatvnc does, independently of the
 /// client's own codec, so the test is not just checking the encoder against

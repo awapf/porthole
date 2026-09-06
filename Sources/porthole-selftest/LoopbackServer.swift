@@ -1,5 +1,5 @@
 import Foundation
-import MyTightCore
+import PortholeCore
 
 /// A minimal RFB 3.8 server that speaks just enough to exercise the client
 /// end-to-end over a real TCP socket: handshake, ServerInit, framebuffer

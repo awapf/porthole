@@ -2,31 +2,31 @@
 import PackageDescription
 
 let package = Package(
-    name: "mytight",
+    name: "porthole",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "mytight", targets: ["mytight"]),
-        .executable(name: "mytight-selftest", targets: ["mytight-selftest"]),
-        .library(name: "MyTightCore", targets: ["MyTightCore"]),
+        .executable(name: "porthole", targets: ["porthole"]),
+        .executable(name: "porthole-selftest", targets: ["porthole-selftest"]),
+        .library(name: "PortholeCore", targets: ["PortholeCore"]),
     ],
     targets: [
         .systemLibrary(name: "CZlib", path: "Sources/CZlib"),
         .target(
-            name: "MyTightCore",
+            name: "PortholeCore",
             dependencies: ["CZlib"],
-            path: "Sources/MyTightCore",
+            path: "Sources/PortholeCore",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "mytight-selftest",
-            dependencies: ["MyTightCore", "CZlib"],
-            path: "Sources/mytight-selftest",
+            name: "porthole-selftest",
+            dependencies: ["PortholeCore", "CZlib"],
+            path: "Sources/porthole-selftest",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "mytight",
-            dependencies: ["MyTightCore"],
-            path: "Sources/mytight",
+            name: "porthole",
+            dependencies: ["PortholeCore"],
+            path: "Sources/porthole",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

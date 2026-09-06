@@ -1,6 +1,6 @@
 import Foundation
 import CZlib
-import MyTightCore
+import PortholeCore
 
 /// Tiny assertion harness. The Command Line Tools ship neither a usable XCTest
 /// nor a complete swift-testing, so the suite is a plain executable instead of

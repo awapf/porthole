@@ -1,5 +1,5 @@
 import Foundation
-import MyTightCore
+import PortholeCore
 
 /// Builds synthetic Tight rectangles the way neatvnc/TigerVNC would, then
 /// checks the decoder reproduces the source image exactly. These round trips

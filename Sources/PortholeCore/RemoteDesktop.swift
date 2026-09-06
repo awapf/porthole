@@ -169,7 +169,7 @@ public final class RemoteDesktop {
         export WLR_BACKENDS=headless
         export WLR_LIBINPUT_NO_DEVICES=1
         export XDG_SESSION_TYPE=wayland
-        setsid nohup sway \(configArgument) > "$HOME/.cache/mytight-sway.log" 2>&1 < /dev/null &
+        setsid nohup sway \(configArgument) > "$HOME/.cache/porthole-sway.log" 2>&1 < /dev/null &
         echo started
         """
         _ = try ssh.runChecked(script)
@@ -183,7 +183,7 @@ public final class RemoteDesktop {
         export XDG_RUNTIME_DIR=\(shellQuote(state.runtimeDir))
         export WAYLAND_DISPLAY=\(shellQuote(display))
         setsid nohup wayvnc \(shellQuote(options.bindAddress)) \(options.port) \\
-            > "$HOME/.cache/mytight-wayvnc.log" 2>&1 < /dev/null &
+            > "$HOME/.cache/porthole-wayvnc.log" 2>&1 < /dev/null &
         echo started
         """
         if options.bindAddress != "127.0.0.1" {
@@ -200,7 +200,7 @@ public final class RemoteDesktop {
             if state.waylandDisplay != nil { return state }
             Thread.sleep(forTimeInterval: 0.4)
         }
-        throw RemoteError.startupTimeout("the sway Wayland socket (see ~/.cache/mytight-sway.log on the remote)")
+        throw RemoteError.startupTimeout("the sway Wayland socket (see ~/.cache/porthole-sway.log on the remote)")
     }
 
     private func waitForPort(_ port: UInt16, timeout: TimeInterval = 10) throws {
@@ -209,7 +209,7 @@ public final class RemoteDesktop {
             if try probe(port: port).portOpen { return }
             Thread.sleep(forTimeInterval: 0.4)
         }
-        throw RemoteError.startupTimeout("wayvnc to listen on \(port) (see ~/.cache/mytight-wayvnc.log on the remote)")
+        throw RemoteError.startupTimeout("wayvnc to listen on \(port) (see ~/.cache/porthole-wayvnc.log on the remote)")
     }
 
     // MARK: - Output geometry

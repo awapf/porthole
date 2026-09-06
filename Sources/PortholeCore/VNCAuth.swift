@@ -4,7 +4,7 @@ import CommonCrypto
 /// Classic VNC DES challenge-response (security type 2).
 ///
 /// This authenticates the client to the server but does NOT encrypt the
-/// session, and the 8-byte key limit makes it weak on its own. `mytight` only
+/// session, and the 8-byte key limit makes it weak on its own. `porthole` only
 /// ever uses it inside an SSH tunnel or a WireGuard/NetBird link, where the
 /// transport already provides confidentiality.
 public enum VNCAuth {

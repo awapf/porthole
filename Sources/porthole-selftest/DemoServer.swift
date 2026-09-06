@@ -1,13 +1,13 @@
 import Foundation
 import CoreGraphics
 import CoreText
-import MyTightCore
+import PortholeCore
 
 /// A local RFB server that paints a moving test pattern, so the client's
 /// rendering, input and resize handling can be exercised without a VM:
 ///
-///     mytight-selftest --serve 5999
-///     mytight --direct 127.0.0.1:5999 --window
+///     porthole-selftest --serve 5999
+///     porthole --direct 127.0.0.1:5999 --window
 func runDemoServer(port requestedPort: UInt16) -> Never {
     let server: LoopbackServer
     do {
@@ -16,10 +16,10 @@ func runDemoServer(port requestedPort: UInt16) -> Never {
         FileHandle.standardError.write(Data("demo server failed: \(error)\n".utf8))
         exit(1)
     }
-    server.desktopName = "mytight demo"
+    server.desktopName = "porthole demo"
 
     print("demo RFB server listening on 127.0.0.1:\(server.port)")
-    print("connect with:  mytight --direct 127.0.0.1:\(server.port) --window")
+    print("connect with:  porthole --direct 127.0.0.1:\(server.port) --window")
     print("ctrl-c to stop")
 
     let painting = NSLock()
@@ -100,7 +100,7 @@ private func renderDemoFrame(width: Int, height: Int, frame: Int) -> [UInt32] {
         ctx.setFillColor(CGColor(red: 0.4, green: 0.9, blue: 0.6, alpha: 1))
         ctx.fill(CGRect(x: boxX, y: boxY, width: 80, height: 80))
 
-        let caption = "mytight demo — \(width)x\(height) — frame \(frame)"
+        let caption = "porthole demo — \(width)x\(height) — frame \(frame)"
         // CoreText attribute keys, so this file needs no AppKit.
         let attributes: [CFString: Any] = [
             kCTFontAttributeName: CTFontCreateWithName("Menlo" as CFString, 22, nil),

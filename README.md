@@ -1,4 +1,4 @@
-# mytight
+# porthole
 
 A native macOS VNC client built for **wayvnc + sway** on a Proxmox VM, reachable
 over **SSH** or **NetBird**.
@@ -8,7 +8,7 @@ if it isn't running, forwards the port, and drops you into a full-screen native
 window already resized to your Mac's display.
 
 ```
-mytight aw@10.10.0.5
+porthole aw@10.10.0.5
 ```
 
 There is no viewer app to install, no bundled Java, and no X11. The RFB client,
@@ -21,7 +21,7 @@ the Tight/ZRLE decoders and the Metal renderer are all in this binary.
 TightVNC's *server* has been Windows-only for years. On Linux the lineage lives
 on as **TigerVNC** (`Xvnc`) and, for Wayland, **wayvnc** — which is what sway
 needs. What actually matters from TightVNC is the **Tight encoding**, and
-wayvnc speaks it. `mytight` implements Tight (fill, JPEG, and the basic
+wayvnc speaks it. `porthole` implements Tight (fill, JPEG, and the basic
 copy/palette/gradient filters), ZRLE/TRLE, Raw and CopyRect, so it also works
 against TigerVNC and x11vnc unchanged.
 
@@ -29,7 +29,7 @@ against TigerVNC and x11vnc unchanged.
 
 | | |
 |---|---|
-| **One destination** | `mytight aw@vm` — SSH, remote launch, tunnel, window. |
+| **One destination** | `porthole aw@vm` — SSH, remote launch, tunnel, window. |
 | **Starts the server** | Detects a running Wayland session; starts headless sway if there isn't one; starts wayvnc; reuses one that is already serving. |
 | **Matches your display** | Sends `SetDesktopSize` with your Mac's real backing resolution and sets sway's `output scale`, so the remote is pixel-sharp rather than upscaled. |
 | **Native rendering** | Dirty rectangles upload straight into one BGRA Metal texture. Remote pixels are never repacked between the socket and the screen. |
@@ -46,7 +46,7 @@ Requires macOS 14+ and the Swift toolchain that ships with Command Line Tools
 (`xcode-select --install`). Full Xcode is **not** needed.
 
 ```bash
-git clone <this repo> mytight && cd mytight
+git clone <this repo> porthole && cd porthole
 make install          # builds release, installs to ~/.local/bin
 ```
 
@@ -54,12 +54,12 @@ Or by hand:
 
 ```bash
 swift build -c release
-cp .build/release/mytight /usr/local/bin/
+cp .build/release/porthole /usr/local/bin/
 ```
 
 ## Remote setup
 
-On the VM you need `wayvnc`, and `sway` if you want mytight to bring up a
+On the VM you need `wayvnc`, and `sway` if you want porthole to bring up a
 desktop that isn't already running.
 
 ```bash
@@ -69,22 +69,22 @@ sudo apt install wayvnc sway
 sudo pacman -S wayvnc sway
 ```
 
-Nothing else. mytight starts them over SSH, binding wayvnc to `127.0.0.1` so it
+Nothing else. porthole starts them over SSH, binding wayvnc to `127.0.0.1` so it
 is reachable only through the tunnel.
 
 For a persistent desktop that survives disconnects, run sway yourself (a
-systemd user unit is ideal) and mytight will attach to it instead of starting
+systemd user unit is ideal) and porthole will attach to it instead of starting
 its own.
 
 ## Usage
 
 ```bash
-mytight aw@10.10.0.5              # SSH: start the desktop, tunnel, full screen
-mytight aw@10.10.0.5 --window     # windowed
-mytight vm                        # a host saved in the config file
+porthole aw@10.10.0.5              # SSH: start the desktop, tunnel, full screen
+porthole aw@10.10.0.5 --window     # windowed
+porthole vm                        # a host saved in the config file
 
-mytight --direct 100.64.0.5:5900  # straight to a listening server, no SSH
-mytight aw@100.64.0.5 --direct-vnc  # SSH starts it; pixels go direct
+porthole --direct 100.64.0.5:5900  # straight to a listening server, no SSH
+porthole aw@100.64.0.5 --direct-vnc  # SSH starts it; pixels go direct
 ```
 
 ### Resolution
@@ -94,11 +94,11 @@ resolution and sets sway's output scale to match — a 1:1 pixel map with no
 resampling anywhere. On a 15" MacBook Air that is 3420×2224 at scale 2.
 
 ```bash
-mytight vm --res auto        # backing pixels + scale 2 (default, sharpest)
-mytight vm --res 1x          # logical points, a quarter of the pixels
-mytight vm --res 2560x1440   # explicit
-mytight vm --res keep        # leave the remote alone
-mytight vm --scale 0         # do not touch sway's output scale
+porthole vm --res auto        # backing pixels + scale 2 (default, sharpest)
+porthole vm --res 1x          # logical points, a quarter of the pixels
+porthole vm --res 2560x1440   # explicit
+porthole vm --res keep        # leave the remote alone
+porthole vm --scale 0         # do not touch sway's output scale
 ```
 
 `--res auto` is the sharp option but the expensive one: it is four times the
@@ -114,19 +114,19 @@ many distinct colours it holds, which separates "the server sent nothing" from
 "we failed to draw it":
 
 ```bash
-mytight office-aw-6 --dump-frame /tmp/remote.png -v
+porthole office-aw-6 --dump-frame /tmp/remote.png -v
 # framebuffer 3420x2224 — 99.99% non-black, 63104 distinct colours, 5 frames
 ```
 
 ### Tuning a slow link
 
 ```bash
-mytight vm --no-reconnect    # exit on a dropped link instead of retrying
-mytight vm --no-live-resize  # keep the remote size fixed while resizing
-mytight vm --quality 5       # more JPEG compression (0-9, default 8)
-mytight vm --compress 9      # more zlib effort, less bandwidth
-mytight vm --lossless        # no JPEG at all; crisp text, more bytes
-mytight vm -v                # log bytes/s and ms/frame every 2 seconds
+porthole vm --no-reconnect    # exit on a dropped link instead of retrying
+porthole vm --no-live-resize  # keep the remote size fixed while resizing
+porthole vm --quality 5       # more JPEG compression (0-9, default 8)
+porthole vm --compress 9      # more zlib effort, less bandwidth
+porthole vm --lossless        # no JPEG at all; crisp text, more bytes
+porthole vm -v                # log bytes/s and ms/frame every 2 seconds
 ```
 
 Press **⌃⌥⌘I** in-session for the same numbers as an overlay.
@@ -149,7 +149,7 @@ will not claim:
 ### Saved hosts
 
 ```bash
-mytight --init-config       # writes ~/.config/mytight/config.json
+porthole --init-config       # writes ~/.config/porthole/config.json
 ```
 
 ```json
@@ -165,11 +165,11 @@ mytight --init-config       # writes ~/.config/mytight/config.json
 }
 ```
 
-Then `mytight vm`. Command-line flags override the file.
+Then `porthole vm`. Command-line flags override the file.
 
 ## Security
 
-**The RFB session itself is not encrypted.** mytight relies on the transport
+**The RFB session itself is not encrypted.** porthole relies on the transport
 underneath it, and defaults to the arrangement that makes that safe:
 
 - **Default (SSH).** wayvnc is bound to `127.0.0.1` on the VM and reached
@@ -193,7 +193,7 @@ CMAC/CTR layer. `RFBClient.authenticate()` is where it would slot in.
 ## Testing
 
 ```bash
-swift run mytight-selftest
+swift run porthole-selftest
 ```
 
 38 checks with no external dependencies, covering:
@@ -216,8 +216,8 @@ swift run mytight-selftest
 There is also a demo server, so the window and input can be exercised with no VM:
 
 ```bash
-mytight-selftest --serve 5999
-mytight --direct 127.0.0.1:5999 --window
+porthole-selftest --serve 5999
+porthole --direct 127.0.0.1:5999 --window
 ```
 
 The suite is a plain executable rather than a test target because Command Line
@@ -226,7 +226,7 @@ Tools ships neither a usable XCTest nor a complete swift-testing.
 ## Layout
 
 ```
-Sources/MyTightCore/         no AppKit — usable headless
+Sources/PortholeCore/         no AppKit — usable headless
   Socket.swift               ByteSource/ByteSink, buffered exact-length reads
   RFBClient.swift            handshake, message loop, pseudo-encodings
   TightDecoder.swift         fill / JPEG / copy / palette / gradient
@@ -236,8 +236,8 @@ Sources/MyTightCore/         no AppKit — usable headless
   SSHSession.swift           one multiplexed connection for everything
   RemoteDesktop.swift        probe, start sway/wayvnc, set output scale
   Keysym.swift               macOS key codes to X11 keysyms
-Sources/mytight/             AppKit shell
-Sources/mytight-selftest/    suite + loopback and demo servers
+Sources/porthole/             AppKit shell
+Sources/porthole-selftest/    suite + loopback and demo servers
 ```
 
 ## Known gaps
