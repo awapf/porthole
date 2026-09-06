@@ -2,13 +2,14 @@ class Porthole < Formula
   desc "Native macOS VNC client for wayvnc/sway over SSH or NetBird"
   homepage "https://github.com/awapf/porthole"
   url "https://github.com/awapf/porthole/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "16db9104fe045f6f51a10d7a6cf5604208eada452883a5f57d1f86925f11050c"
   license "MIT"
   version "0.1.0"
 
-  depends_on :macos
-  depends_on macos: :sonoma          # Metal and CADisplayLink APIs used here
-  depends_on xcode: ["15.0", :build] # Swift 5.9+; Command Line Tools suffice
+  # Metal and CADisplayLink APIs used here need Sonoma or later.
+  depends_on macos: :sonoma
+  # Deliberately no `depends_on xcode`: that requires a full Xcode install,
+  # whereas this builds fine with the Swift toolchain in Command Line Tools.
 
   def install
     # --disable-sandbox: SwiftPM writes its build tree, which Homebrew's
