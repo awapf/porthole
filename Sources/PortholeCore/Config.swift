@@ -53,7 +53,7 @@ public struct PortholeConfig: Codable {
                                                 withIntermediateDirectories: true)
         var config = PortholeConfig()
         var example = HostConfig()
-        example.destination = "you@10.10.0.5"
+        example.destination = "user@hostname"
         example.resolution = "auto"
         example.swayScale = 2
         example.commandKey = "super"

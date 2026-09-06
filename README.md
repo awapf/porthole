@@ -1,14 +1,14 @@
 # porthole
 
-A native macOS VNC client built for **wayvnc + sway** on a Proxmox VM, reachable
-over **SSH** or **NetBird**.
+A native macOS VNC client built for **wayvnc + sway**, reached over **SSH** or
+by connecting straight to an exposed VNC port.
 
 You type one destination. It opens an SSH connection, starts the remote desktop
 if it isn't running, forwards the port, and drops you into a full-screen native
 window already resized to your Mac's display.
 
 ```
-porthole aw@10.10.0.5
+porthole user@hostname
 ```
 
 There is no viewer app to install, no bundled Java, and no X11. The RFB client,
@@ -29,7 +29,7 @@ against TigerVNC and x11vnc unchanged.
 
 | | |
 |---|---|
-| **One destination** | `porthole aw@vm` — SSH, remote launch, tunnel, window. |
+| **One destination** | `porthole user@hostname` — SSH, remote launch, tunnel, window. |
 | **Starts the server** | Detects a running Wayland session; starts headless sway if there isn't one; starts wayvnc; reuses one that is already serving. |
 | **Matches your display** | Sends `SetDesktopSize` with your Mac's real backing resolution and sets sway's `output scale`, so the remote is pixel-sharp rather than upscaled. |
 | **Native rendering** | Dirty rectangles upload straight into one BGRA Metal texture. Remote pixels are never repacked between the socket and the screen. |
@@ -104,12 +104,12 @@ its own.
 ## Usage
 
 ```bash
-porthole aw@10.10.0.5              # SSH: start the desktop, tunnel, full screen
-porthole aw@10.10.0.5 --window     # windowed
+porthole user@hostname              # SSH: start the desktop, tunnel, full screen
+porthole user@hostname --window     # windowed
 porthole vm                        # a host saved in the config file
 
-porthole --direct 100.64.0.5:5900  # straight to a listening server, no SSH
-porthole aw@100.64.0.5 --direct-vnc  # SSH starts it; pixels go direct
+porthole --direct hostname:5900  # straight to a listening server, no SSH
+porthole user@hostname --direct-vnc  # SSH starts it; pixels go direct
 ```
 
 ### Resolution
@@ -139,7 +139,7 @@ many distinct colours it holds, which separates "the server sent nothing" from
 "we failed to draw it":
 
 ```bash
-porthole office-aw-6 --dump-frame /tmp/remote.png -v
+porthole user@hostname --dump-frame /tmp/remote.png -v
 # framebuffer 3420x2224 — 99.99% non-black, 63104 distinct colours, 5 frames
 ```
 
@@ -182,7 +182,7 @@ porthole --init-config       # writes ~/.config/porthole/config.json
 {
   "hosts": {
     "vm": {
-      "destination": "aw@10.10.0.5",
+      "destination": "user@hostname",
       "resolution": "auto",
       "swayScale": 2,
       "commandKey": "super"
@@ -222,12 +222,13 @@ underneath it, and defaults to the arrangement that makes that safe:
 - **Default (SSH).** wayvnc is bound to `127.0.0.1` on the VM and reached
   through an SSH port forward. Nothing touches the network in the clear, and
   authentication is your existing SSH key.
-- **`--direct-vnc` / `--direct` on NetBird.** WireGuard already provides modern
-  authenticated encryption and NetBird restricts who can reach the peer. This
-  skips a hop of latency. Only use it on the mesh. `--direct-vnc` binds wayvnc
-  to the exact address you connected to, not `0.0.0.0`, so the VM's other
-  interfaces are not served.
-- **`--direct` on an untrusted network.** Don't. Use the SSH default.
+- **`--direct-vnc` / `--direct` on a private, already-encrypted network.** On a
+  WireGuard or similar mesh the link is authenticated and encrypted beneath us,
+  so the tunnel only costs latency. `--direct-vnc` binds wayvnc to the exact
+  address you connected to, never `0.0.0.0`, so the machine's other interfaces
+  are not served.
+- **`--direct` on an untrusted network.** Don't — RFB is in the clear. Use the
+  SSH default.
 
 `--password` uses classic VNC DES auth, which is weak on its own — it exists for
 servers that demand it, not as a substitute for the tunnel.

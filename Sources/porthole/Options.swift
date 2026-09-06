@@ -43,7 +43,7 @@ struct Options {
     var destination = ""
     var direct = false
     /// Start the server over SSH but carry pixels outside the tunnel — right
-    /// when NetBird/WireGuard already encrypts the path.
+    /// when the network already encrypts the path (a WireGuard mesh, say).
     var directVNC = false
     var port: UInt16 = 5900
     var password: String?
@@ -77,7 +77,7 @@ struct Options {
     var testKey = "3"
 
     static let usage = """
-    porthole — a native macOS VNC client for wayvnc/sway over SSH or NetBird
+    porthole — a native macOS VNC client for wayvnc/sway
 
     USAGE
       porthole <user@host | saved-name> [options]
@@ -90,9 +90,9 @@ struct Options {
     CONNECTION
       --direct              Connect straight to host:port; do not use SSH at all.
       --direct-vnc          Use SSH to start the server, then connect to host:port
-                            directly instead of through the tunnel. Use on a
-                            WireGuard/NetBird mesh, where the link is already
-                            encrypted and the extra hop only costs latency.
+                            directly instead of through the tunnel. Worth it when
+                            the network is already private and encrypted, where
+                            the extra hop only costs latency.
       --port N              Remote VNC port (default 5900).
       --password P          VNC password. Also read from $PORTHOLE_PASSWORD.
       --ssh-opt ARG         Extra argument passed to ssh. Repeatable.

@@ -214,9 +214,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
         launch.allowHeadlessSway = options.headlessSway
         launch.swayConfig = options.swayConfig
         launch.reuseExisting = options.reuseExisting
-        // With --direct-vnc the server has to listen somewhere NetBird can
-        // reach, but binding 0.0.0.0 would expose it on every interface the VM
-        // has. Bind exactly the address we are already talking to instead.
+        // With --direct-vnc the server has to listen somewhere reachable, but
+        // binding 0.0.0.0 would expose it on every interface the machine has.
+        // Bind exactly the address we are already talking to instead.
         launch.bindAddress = options.directVNC ? options.sshHostOnly : "127.0.0.1"
 
         status("Starting the remote desktop…")

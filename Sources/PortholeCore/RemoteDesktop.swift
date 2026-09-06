@@ -40,9 +40,9 @@ public enum RemoteError: Error, CustomStringConvertible {
 public struct RemoteLaunchOptions {
     public var port: UInt16 = 5900
     /// Bind address for wayvnc on the remote. Loopback is right for an SSH
-    /// tunnel. For a direct connection this should be the specific NetBird
-    /// address, never 0.0.0.0 — the VM may have interfaces you did not mean to
-    /// serve on.
+    /// tunnel. For a direct connection this should be the specific address you
+    /// reach the machine on, never 0.0.0.0 — it may have interfaces you did not
+    /// mean to serve on.
     public var bindAddress = "127.0.0.1"
     /// Start a headless sway when no Wayland session is running.
     public var allowHeadlessSway = true

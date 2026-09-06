@@ -1,5 +1,5 @@
 class Porthole < Formula
-  desc "Native macOS VNC client for wayvnc/sway over SSH or NetBird"
+  desc "Native macOS VNC client for wayvnc/sway over SSH or a direct VNC port"
   homepage "https://github.com/awapf/porthole"
   url "https://github.com/awapf/porthole/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "16db9104fe045f6f51a10d7a6cf5604208eada452883a5f57d1f86925f11050c"

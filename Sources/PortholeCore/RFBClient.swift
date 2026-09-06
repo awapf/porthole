@@ -132,7 +132,8 @@ public final class RFBClient {
             .joined(separator: ", "))
 
         // Prefer no-auth when the transport already authenticates us (SSH tunnel
-        // to loopback, or a WireGuard peer), otherwise fall back to VNC auth.
+        // to loopback, or a peer on a private encrypted network), otherwise
+        // fall back to VNC auth.
         let chosen: SecurityType
         if offered.contains(SecurityType.none.rawValue) {
             chosen = .none

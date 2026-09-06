@@ -5,8 +5,8 @@ import CommonCrypto
 ///
 /// This authenticates the client to the server but does NOT encrypt the
 /// session, and the 8-byte key limit makes it weak on its own. `porthole` only
-/// ever uses it inside an SSH tunnel or a WireGuard/NetBird link, where the
-/// transport already provides confidentiality.
+/// ever uses it inside an SSH tunnel or an already-encrypted private network,
+/// where the transport provides confidentiality.
 public enum VNCAuth {
     /// VNC feeds the password to DES with the bit order of each byte reversed.
     private static func mangle(_ password: String) -> [UInt8] {
