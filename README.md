@@ -253,3 +253,12 @@ Sources/porthole-selftest/    suite + loopback and demo servers
 - **⌘Tab and ⌘Space** are intercepted by macOS before the app sees them.
   Capturing them needs a `CGEventTap` and an Accessibility permission prompt.
 - **Audio** is out of scope; use PipeWire over the SSH connection if you need it.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+All code here is first-party, and the only libraries linked are `zlib` and
+Apple's own frameworks. [neatvnc](https://github.com/any1/neatvnc) and
+[wayvnc](https://github.com/any1/wayvnc) (both ISC) were read to understand
+the wire protocol and its quirks, but no code was taken from them.
