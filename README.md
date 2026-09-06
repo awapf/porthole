@@ -35,6 +35,7 @@ against TigerVNC and x11vnc unchanged.
 | **Native rendering** | Dirty rectangles upload straight into one BGRA Metal texture. Remote pixels are never repacked between the socket and the screen. |
 | **Instant full screen** | A borderless window over the display, not a macOS Space — no transition animation on entry or exit. |
 | **Real keyboard** | Command maps to **Super** by default, so sway's `$mod` bindings sit under your thumb. Modifiers are released on focus loss so nothing latches. |
+| **Keyboard grab** | Click into the window and ⌘Tab, ⌘Space and ⌘Q go to the remote instead of macOS. ^⌥⌘G hands the keyboard back, and losing focus releases it automatically. |
 | **Clipboard both ways** | Full UTF-8 via the extended clipboard — accents, dashes, CJK and emoji all survive. Falls back to Latin-1 only if the server has no extension. |
 | **Auto-reconnect** | A dropped link retries with backoff, restarting the remote server if it died. Survives laptop sleep. |
 | **Live resize** | Resizing the window reshapes the remote desktop to match, debounced. |
@@ -144,6 +145,7 @@ will not claim:
 | **⌃⌥⌘F** | toggle full screen |
 | **⌃⌥⌘I** | stats overlay |
 | **⌃⌥⌘R** | re-send the resolution request |
+| **⌃⌥⌘G** | release the keyboard grab |
 | **⌃⌥⌘Q** | disconnect |
 
 ### Saved hosts
@@ -166,6 +168,27 @@ porthole --init-config       # writes ~/.config/porthole/config.json
 ```
 
 Then `porthole vm`. Command-line flags override the file.
+
+## Keyboard grab
+
+Clicking into the session captures the keyboard, so the chords macOS normally
+keeps for itself — ⌘Tab, ⌘Space, ⌘Q — reach sway instead. The blue badge at the
+top of the window shows when it is active, along with the way out.
+
+It needs Accessibility permission, which macOS asks for the first time the grab
+engages. Grant it, then relaunch: macOS only re-reads the decision at launch.
+`make install` signs the binary with a stable identifier so the grant survives
+reinstalls. `--no-grab` switches the feature off entirely.
+
+The grab is built to be impossible to get stuck in:
+
+- **⌃⌥⌘G** is checked before anything is forwarded and is never swallowed.
+- Losing focus by any means — another window, Mission Control, anything —
+  releases it.
+- Events only get consumed while grabbed *and* porthole is frontmost;
+  otherwise they pass through untouched.
+- macOS disables an event tap that responds too slowly. That is detected and
+  the tap re-armed, so a grab cannot silently keep eating the keyboard.
 
 ## Security
 

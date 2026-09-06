@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
     private var reconnectAttempt = 0
     private var isReconnecting = false
     private var resizeDebounce: DispatchWorkItem?
+    private let keyboardGrab = KeyboardGrab()
+    private var grabBadge: GrabBadge!
+    private var warnedAboutPermission = false
     private var lastRequestedSize: (Int, Int)?
 
     init(options: Options) {
@@ -44,6 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
         NSApp.activate(ignoringOtherApps: true)
         // The window is up before any network work starts, so the session feels
         // immediate even when the SSH handshake takes a moment.
+        if options.grabKeyboard {
+            log("keyboard grab: Accessibility permission "
+                + (KeyboardGrab.hasPermission(prompt: false) ? "granted" : "NOT granted yet"))
+        }
         overlay.show("Connecting to \(options.destination)…")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in self?.establish() }
     }
@@ -75,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
         vncView.autoresizingMask = [.width, .height]
         vncView.commandMapping = options.commandKey
         vncView.hotkeyHandler = { [weak self] event in self?.handleHotkey(event) ?? false }
+        vncView.onClickIntoView = { [weak self] in self?.engageGrab() }
         window.contentView = vncView
 
         overlay = StatusOverlay(frame: contentRect)
@@ -85,6 +93,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
         vncView.addSubview(statsHUD)
         statsHUD.isHidden = true
 
+        grabBadge = GrabBadge()
+        vncView.addSubview(grabBadge)
+        grabBadge.isHidden = true
+        configureGrab()
+
         if isFullscreen {
             window.setFrame(screen.frame, display: true)
             window.level = .normal
@@ -94,6 +107,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
         }
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(vncView)
+    }
+
+    // MARK: - Keyboard grab
+
+    private func configureGrab() {
+        keyboardGrab.logger = { [weak self] in self?.log($0) }
+        // The release chord is evaluated before anything reaches the remote,
+        // and is deliberately one macOS itself never claims.
+        keyboardGrab.isReleaseChord = { event in
+            guard event.type == .keyDown else { return false }
+            let required: NSEvent.ModifierFlags = [.control, .option, .command]
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                .isSuperset(of: required) else { return false }
+            return event.charactersIgnoringModifiers?.lowercased() == "g"
+        }
+        keyboardGrab.onEvent = { [weak self] event in
+            guard let self, self.isLive else { return false }
+            // Client hotkeys still win while grabbed, so there is always a way
+            // to quit, toggle full screen or read the stats.
+            if self.handleHotkey(event) { return true }
+            return self.vncView.handleGrabbed(event)
+        }
+        keyboardGrab.onStateChange = { [weak self] grabbed in
+            guard let self else { return }
+            self.grabBadge.isHidden = !grabbed
+            self.grabBadge.reposition(in: self.vncView.bounds)
+            if !grabbed { self.vncView.releaseAllKeys() }
+        }
+    }
+
+    /// Engages the grab when the user clicks into the session.
+    private func engageGrab() {
+        guard options.grabKeyboard, isLive, !keyboardGrab.isGrabbed else { return }
+        if !KeyboardGrab.hasPermission(prompt: false) {
+            // Ask once. Nagging on every click would be worse than the feature.
+            guard !warnedAboutPermission else { return }
+            warnedAboutPermission = true
+        }
+        if !keyboardGrab.grab() {
+            log("keyboard grab unavailable — grant Accessibility permission to porthole "
+                + "in System Settings > Privacy & Security > Accessibility, then click again")
+        }
     }
 
     // MARK: - Bringing the session up
@@ -365,6 +420,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
         case "f": toggleFullscreen(); return true
         case "i": statsHUD.isHidden.toggle(); return true
         case "q": NSApp.terminate(nil); return true
+        case "g":
+            if keyboardGrab.isGrabbed { keyboardGrab.release() } else { engageGrab() }
+            return true
         case "r":
             hasRequestedResize = false
             applyResolution()
@@ -439,6 +497,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, RFBClientDelegate {
     }
 
     private func teardown() {
+        keyboardGrab.release()
         pasteboardTimer?.invalidate()
         statsTimer?.invalidate()
         vncView?.releaseAllKeys()
@@ -467,10 +526,14 @@ extension AppDelegate: NSWindowDelegate {
     /// A modifier held while focus leaves would otherwise stay latched on the
     /// remote until the next press.
     func windowDidResignKey(_ notification: Notification) {
+        // Releasing here is what makes the grab safe: switching away by any
+        // means hands the keyboard straight back to macOS.
+        keyboardGrab.release()
         vncView?.releaseAllKeys()
     }
 
     func windowDidResize(_ notification: Notification) {
+        grabBadge?.reposition(in: vncView.bounds)
         scheduleRemoteResize()
     }
 

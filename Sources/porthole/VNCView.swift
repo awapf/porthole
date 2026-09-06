@@ -18,6 +18,9 @@ final class VNCView: NSView {
     /// remote. Needed because Command is forwarded as Super, so the escape
     /// hatches have to live on a chord sway will never claim.
     var hotkeyHandler: ((NSEvent) -> Bool)?
+    /// Fired when the user clicks into the view, which is what engages the
+    /// keyboard grab.
+    var onClickIntoView: (() -> Void)?
 
     private var renderer: FramebufferRenderer!
     private var metalLayer: CAMetalLayer { layer as! CAMetalLayer }
@@ -31,6 +34,10 @@ final class VNCView: NSView {
     private var buttonMask: PointerButtons = []
     private var lastModifiers: NSEvent.ModifierFlags = []
     private var keyboard = KeyboardTracker()
+    /// Key codes whose press was consumed as a client hotkey, so their release
+    /// must be swallowed too — otherwise the remote sees an up for a key it
+    /// never saw go down.
+    private var hotkeyKeyCodes = Set<UInt16>()
     private var remoteCursor: NSCursor?
     /// Kept so the cursor can be rebuilt when the geometry changes.
     private var lastCursorImage: CursorImage?
@@ -253,7 +260,11 @@ final class VNCView: NSView {
         client?.sendPointer(x: x, y: y, buttonMask: buttonMask.rawValue)
     }
 
-    override func mouseDown(with event: NSEvent) { buttonMask.insert(.left); sendPointer(event) }
+    override func mouseDown(with event: NSEvent) {
+        onClickIntoView?()
+        buttonMask.insert(.left)
+        sendPointer(event)
+    }
     override func mouseUp(with event: NSEvent) { buttonMask.remove(.left); sendPointer(event) }
     override func rightMouseDown(with event: NSEvent) { buttonMask.insert(.right); sendPointer(event) }
     override func rightMouseUp(with event: NSEvent) { buttonMask.remove(.right); sendPointer(event) }
@@ -291,7 +302,10 @@ final class VNCView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
-        if hotkeyHandler?(event) == true { return }
+        if hotkeyHandler?(event) == true {
+            hotkeyKeyCodes.insert(event.keyCode)
+            return
+        }
         // The remote does its own auto-repeat from the held key. Forwarding
         // macOS's repeats as well would double every held keystroke.
         if event.isARepeat { return }
@@ -300,6 +314,7 @@ final class VNCView: NSView {
     }
 
     override func keyUp(with event: NSEvent) {
+        if hotkeyKeyCodes.remove(event.keyCode) != nil { return }
         apply(keyboard.release(keyCode: event.keyCode, fallbackKeysym: keysym(for: event)))
     }
 
@@ -350,9 +365,22 @@ final class VNCView: NSView {
         for action in actions { client?.sendKey(keysym: action.keysym, down: action.down) }
     }
 
+    /// Feeds an event captured by the keyboard grab through the normal paths,
+    /// so grabbed and ungrabbed input behave identically.
+    func handleGrabbed(_ event: NSEvent) -> Bool {
+        switch event.type {
+        case .keyDown: keyDown(with: event)
+        case .keyUp: keyUp(with: event)
+        case .flagsChanged: flagsChanged(with: event)
+        default: return false
+        }
+        return true
+    }
+
     /// Releases every key we believe is held. Called when focus leaves, so a
     /// modifier held during a window switch does not stick on the remote.
     func releaseAllKeys() {
+        hotkeyKeyCodes.removeAll()
         apply(keyboard.releaseAll())
         for keysym in [Keysym.shiftL, Keysym.shiftR, Keysym.controlL, Keysym.controlR,
                        Keysym.altL, Keysym.altR, Keysym.superL, Keysym.superR] {

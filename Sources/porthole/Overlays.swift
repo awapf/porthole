@@ -136,3 +136,36 @@ final class StatsHUD: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
+
+
+/// Small indicator shown while the keyboard is grabbed.
+///
+/// A grab that captures Command-Tab with no visible sign of it would be
+/// alarming, so the state is always on screen along with the way out.
+final class GrabBadge: NSView {
+    private let label = NSTextField(labelWithString: "⌨ grabbed — ^⌥⌘G to release")
+
+    init() {
+        super.init(frame: NSRect(x: 0, y: 0, width: 260, height: 26))
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.85).cgColor
+        layer?.cornerRadius = 13
+        autoresizingMask = [.minXMargin, .minYMargin]
+
+        label.font = .systemFont(ofSize: 11, weight: .medium)
+        label.textColor = .white
+        label.alignment = .center
+        label.frame = NSRect(x: 8, y: 5, width: 244, height: 16)
+        addSubview(label)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// Sits top-centre, where it is visible without covering content.
+    func reposition(in bounds: NSRect) {
+        frame.origin = NSPoint(x: (bounds.width - frame.width) / 2,
+                               y: bounds.height - frame.height - 12)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}

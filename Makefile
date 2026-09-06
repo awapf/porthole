@@ -1,5 +1,6 @@
-PREFIX ?= $(HOME)/.local
-BIN    := $(PREFIX)/bin
+PREFIX    ?= $(HOME)/.local
+BIN       := $(PREFIX)/bin
+BUNDLE_ID := ch.awapf.porthole
 
 .PHONY: all build release test install uninstall demo clean
 
@@ -18,7 +19,10 @@ install: release
 	@mkdir -p $(BIN)
 	install -m 755 .build/release/porthole $(BIN)/porthole
 	install -m 755 .build/release/porthole-selftest $(BIN)/porthole-selftest
-	@echo "installed to $(BIN)/porthole"
+	@# A stable signing identifier gives macOS something consistent to attach
+	@# the Accessibility grant to, so the keyboard grab survives reinstalls.
+	@codesign --force --sign - --identifier $(BUNDLE_ID) $(BIN)/porthole
+	@echo "installed to $(BIN)/porthole (signed as $(BUNDLE_ID))"
 	@case ":$$PATH:" in *":$(BIN):"*) ;; \
 	  *) echo "note: $(BIN) is not on your PATH";; esac
 

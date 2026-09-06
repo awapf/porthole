@@ -60,6 +60,9 @@ struct Options {
     var autoReconnect = true
     /// Follow window resizes by reshaping the remote desktop.
     var liveResize = true
+    /// Capture the keys macOS reserves (Cmd-Tab, Cmd-Space, Cmd-Q) so they
+    /// reach the remote. Engages when you click into the window.
+    var grabKeyboard = true
     var fullscreen = true
     var headlessSway = true
     var swayConfig: String?
@@ -105,6 +108,7 @@ struct Options {
       --no-cursor           Draw the local pointer instead of the remote's.
       --no-reconnect        Exit when the connection drops instead of retrying.
       --no-live-resize      Do not reshape the remote when the window resizes.
+      --no-grab             Never capture the keys macOS reserves for itself.
       --continuous          Ask the server to push frames without a request per
                             frame. Saves one round trip; off by default because
                             some servers mishandle it.
@@ -136,6 +140,16 @@ struct Options {
     IN-SESSION KEYS
       ^⌥⌘F   toggle full screen        ^⌥⌘I   toggle the stats overlay
       ^⌥⌘Q   disconnect                ^⌥⌘R   re-send the resolution request
+      ^⌥⌘G   release the keyboard grab
+
+    KEYBOARD GRAB
+      Clicking into the window captures the keyboard, so ⌘Tab, ⌘Space, ⌘Q and
+      ⌘C go to the remote instead of macOS — the session behaves like a real
+      machine. Press ^⌥⌘G to hand the keyboard back; the grab is also released
+      whenever the window loses focus, so it can never strand you.
+
+      This needs Accessibility permission, which macOS will ask for the first
+      time the grab engages. Use --no-grab to switch the whole thing off.
     """
 
     /// Command line wins over the saved host, which wins over `defaults`.
@@ -166,6 +180,7 @@ struct Options {
             case "--continuous": options.useContinuousUpdates = true
             case "--no-reconnect": options.autoReconnect = false
             case "--no-live-resize": options.liveResize = false
+            case "--no-grab": options.grabKeyboard = false
             case "--lossless": options.lossless = true
             case "--no-reuse": options.reuseExisting = false
             case "--no-headless-sway": options.headlessSway = false
