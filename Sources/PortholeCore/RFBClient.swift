@@ -49,6 +49,16 @@ public struct RFBOptions {
 }
 
 public final class RFBClient {
+    /// Hard ceilings on server-supplied sizes. Every length below is read
+    /// straight off the wire, so without a cap a malicious or compromised
+    /// server (or a MITM on a `--direct` link) can name a multi-gigabyte
+    /// allocation in a handful of bytes and OOM the client. These bounds are
+    /// generous enough that no legitimate frame is affected.
+    static let maxDimension = 16384          // matches the --res clamp
+    static let maxStringBytes = 1 << 20      // desktop name, reject/failure reasons
+    static let maxCutTextBytes = 1 << 20     // legacy ServerCutText payload
+    static let maxCursorDimension = 1024     // cursors are small; this is already huge
+
     public weak var delegate: RFBClientDelegate?
     /// Diagnostic hook for outbound input messages.
     public var traceInput: ((String) -> Void)?
@@ -103,8 +113,10 @@ public final class RFBClient {
 
         let width = Int(try reader.readU16())
         let height = Int(try reader.readU16())
+        try Self.checkFramebufferSize(width: width, height: height)
         let serverFormat = try PixelFormat(reader: reader)
-        let nameLength = Int(try reader.readU32())
+        let nameLength = try Self.checkLength(Int(try reader.readU32()),
+                                              max: Self.maxStringBytes, what: "desktop name")
         let nameBytes = try reader.readBytes(nameLength)
         desktopName = String(bytes: nameBytes, encoding: .utf8) ?? "remote"
         log("desktop \"\(desktopName)\" \(width)x\(height), server format \(serverFormat.bitsPerPixel)bpp")
@@ -123,7 +135,7 @@ public final class RFBClient {
     private func authenticate() throws {
         let count = Int(try reader.readU8())
         if count == 0 {
-            let reasonLength = Int(try reader.readU32())
+            let reasonLength = try Self.checkLength(Int(try reader.readU32()), max: Self.maxStringBytes, what: "reason")
             let reason = String(bytes: try reader.readBytes(reasonLength), encoding: .utf8) ?? "unknown"
             throw RFBError.handshake(reason)
         }
@@ -160,7 +172,7 @@ public final class RFBClient {
 
         let result = try reader.readU32()
         if result != 0 {
-            let reasonLength = Int(try reader.readU32())
+            let reasonLength = try Self.checkLength(Int(try reader.readU32()), max: Self.maxStringBytes, what: "reason")
             let reason = String(bytes: try reader.readBytes(reasonLength), encoding: .utf8) ?? "rejected"
             throw RFBError.authFailed(reason)
         }
@@ -303,7 +315,7 @@ public final class RFBClient {
                     index = rectCount
 
                 case Encoding.pseudoDesktopSize.rawValue:
-                    framebuffer.resize(width: w, height: h)
+                    try resizeFramebuffer(width: w, height: h)
                     resized = (w, h)
 
                 case Encoding.pseudoExtendedDesktopSize.rawValue:
@@ -316,7 +328,7 @@ public final class RFBClient {
                     if x == 1 {
                         switch y {
                         case 0:
-                            framebuffer.resize(width: w, height: h)
+                            try resizeFramebuffer(width: w, height: h)
                             resized = (w, h)
                         case 4:
                             // REQUEST_FORWARDED: accepted and handed to the
@@ -329,7 +341,7 @@ public final class RFBClient {
                             log("server refused our resize request (\(Self.resizeStatus(y)))")
                         }
                     } else {
-                        framebuffer.resize(width: w, height: h)
+                        try resizeFramebuffer(width: w, height: h)
                         resized = (w, h)
                     }
 
@@ -347,7 +359,8 @@ public final class RFBClient {
                     try reader.skip(4)
 
                 case Encoding.pseudoDesktopName.rawValue:
-                    let length = Int(try reader.readU32())
+                    let length = try Self.checkLength(Int(try reader.readU32()),
+                                                      max: Self.maxStringBytes, what: "desktop name")
                     let bytes = try reader.readBytes(length)
                     desktopName = String(bytes: bytes, encoding: .utf8) ?? desktopName
 
@@ -430,6 +443,27 @@ public final class RFBClient {
         return r
     }
 
+    /// Rejects a server-named framebuffer size that is zero or larger than we
+    /// will ever legitimately allocate, before it reaches `Framebuffer.resize`.
+    private static func checkFramebufferSize(width: Int, height: Int) throws {
+        guard width >= 1, height >= 1, width <= maxDimension, height <= maxDimension else {
+            throw RFBError.protocolViolation("server framebuffer size \(width)x\(height) is out of range")
+        }
+    }
+
+    /// Rejects an implausible wire length before it is handed to an allocation.
+    private static func checkLength(_ length: Int, max: Int, what: String) throws -> Int {
+        guard length >= 0, length <= max else {
+            throw RFBError.protocolViolation("\(what) length \(length) is out of range")
+        }
+        return length
+    }
+
+    private func resizeFramebuffer(width w: Int, height h: Int) throws {
+        try Self.checkFramebufferSize(width: w, height: h)
+        framebuffer.resize(width: w, height: h)
+    }
+
     private func decodeRaw(rect: RFBRect) throws {
         let clamped = clamp(rect)
         let bpp = pixelFormat.bytesPerPixel
@@ -459,6 +493,11 @@ public final class RFBClient {
     }
 
     private func readCursor(rect: RFBRect) throws -> CursorImage? {
+        // The cursor rect is not clamped to the framebuffer, so bound it here:
+        // a 65535x65535 cursor would otherwise name a ~17 GB allocation.
+        guard rect.width <= Self.maxCursorDimension, rect.height <= Self.maxCursorDimension else {
+            throw RFBError.protocolViolation("cursor size \(rect.width)x\(rect.height) is out of range")
+        }
         let bpp = pixelFormat.bytesPerPixel
         let pixelBytes = rect.width * rect.height * bpp
         let maskBytes = ((rect.width + 7) / 8) * rect.height
@@ -487,11 +526,14 @@ public final class RFBClient {
         try reader.skip(3)
         let length = Int32(bitPattern: try reader.readU32())
         if length < 0 {
-            try handleExtendedClipboard(payloadLength: Int(-length))
+            // Negate in a wider type: `-Int32.min` overflows and traps, so a
+            // server sending a length field of 0x80000000 would crash us here.
+            try handleExtendedClipboard(payloadLength: Int(-Int64(length)))
             return
         }
         guard length > 0 else { return }
-        let bytes = try reader.readBytes(Int(length))
+        let count = try Self.checkLength(Int(length), max: Self.maxCutTextBytes, what: "cut text")
+        let bytes = try reader.readBytes(count)
         // Latin-1 by specification, but most servers — wayvnc included — put
         // UTF-8 in here anyway, and decoding that as Latin-1 yields mojibake.
         // Prefer UTF-8 when the bytes form a valid sequence.

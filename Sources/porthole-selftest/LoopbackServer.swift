@@ -381,6 +381,25 @@ final class LoopbackServer {
         try send(message)
     }
 
+    /// A ServerCutText whose length field is set verbatim, without any payload
+    /// following — used to exercise the client's bounds and overflow checks on
+    /// a hostile length. `raw` is written as the big-endian u32 length.
+    func sendServerCutTextRawLength(_ raw: UInt32) throws {
+        var message: [UInt8] = [3, 0, 0, 0]
+        message += u32(Int(raw))
+        try send(message)
+    }
+
+    /// A framebuffer-update carrying a single DesktopSize pseudo-rect with the
+    /// given (possibly hostile) dimensions and no pixel payload.
+    func sendDesktopSizePseudoRect(width w: Int, height h: Int) throws {
+        var message: [UInt8] = [0, 0]        // FramebufferUpdate, padding
+        message += u16(1)                    // one rectangle
+        message += u16(0) + u16(0) + u16(w) + u16(h)
+        message += s32(-223)                 // DesktopSize pseudo-encoding
+        try send(message)
+    }
+
     func snapshot() -> (pixelFormat: Bool, encodings: [Int32], size: (Int, Int)?,
                         keys: [(UInt32, Bool)], pointers: [(Int, Int, UInt8)]) {
         lock.lock(); defer { lock.unlock() }
